@@ -1,0 +1,52 @@
+name: MusicXMLQuickLook
+options:
+  bundleIdPrefix: com.futrolab
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    ARCHS: "$(ARCHS_STANDARD)"
+    ONLY_ACTIVE_ARCH: NO
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+  MusicXMLQuickLook:
+    type: application
+    platform: macOS
+    sources:
+      - path: MusicXMLQuickLook
+        excludes:
+          - "Info.plist"
+          - "*.entitlements"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.futrolab.MusicXMLQuickLook
+        INFOPLIST_FILE: MusicXMLQuickLook/Info.plist
+        CODE_SIGN_ENTITLEMENTS: MusicXMLQuickLook/MusicXMLQuickLook.entitlements
+        COMBINE_HIDPI_IMAGES: YES
+    dependencies:
+      - target: MusicXMLPreviewExtension
+
+  MusicXMLPreviewExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: MusicXMLPreviewExtension
+        excludes:
+          - "Info.plist"
+          - "*.entitlements"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.futrolab.MusicXMLQuickLook.PreviewExtension
+        INFOPLIST_FILE: MusicXMLPreviewExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: MusicXMLPreviewExtension/MusicXMLPreviewExtension.entitlements
+        SKIP_INSTALL: YES
+    dependencies:
+      - sdk: QuickLookUI.framework
+      - sdk: WebKit.framework

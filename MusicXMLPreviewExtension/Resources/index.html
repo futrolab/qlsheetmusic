@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MusicXML Quick Look</title>
+  <style>
+    :root {
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+      color: #111827;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    #page-wrapper {
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 36px 56px;
+      min-height: 100vh;
+      background-color: #ffffff;
+    }
+
+    #status {
+      padding: 16px;
+      font-size: 13px;
+      color: #6b7280;
+      text-align: center;
+    }
+
+    #status.error {
+      margin-top: 24px;
+      border: 1px solid #fecaca;
+      background-color: #fef2f2;
+      color: #991b1b;
+      border-radius: 8px;
+      text-align: left;
+      white-space: pre-wrap;
+    }
+
+    #osmd-container {
+      width: 100%;
+    }
+
+    #osmd-container svg {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+  <script src="opensheetmusicdisplay.min.js"></script>
+</head>
+<body>
+  <main id="page-wrapper">
+    <div id="status">Rendering sheet music…</div>
+    <div id="osmd-container"></div>
+  </main>
+
+  <script>
+    (function () {
+      let osmd = null;
+
+      function setStatus(message, isError) {
+        const el = document.getElementById("status");
+        if (!el) return;
+        if (!message) {
+          el.style.display = "none";
+          el.classList.remove("error");
+          el.textContent = "";
+          return;
+        }
+        el.style.display = "block";
+        el.classList.toggle("error", Boolean(isError));
+        el.textContent = message;
+      }
+
+      function decodeBase64UTF8(base64) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        return new TextDecoder("utf-8").decode(bytes);
+      }
+
+      window.renderMusicXMLBase64 = async function (base64Payload) {
+        try {
+          if (typeof opensheetmusicdisplay === "undefined") {
+            setStatus(
+              "OpenSheetMusicDisplay bundle missing (opensheetmusicdisplay.min.js). Run Scripts/fetch-osmd.sh before building.",
+              true
+            );
+            return;
+          }
+
+          setStatus("Rendering sheet music…", false);
+          const xmlString = decodeBase64UTF8(base64Payload);
+          const container = document.getElementById("osmd-container");
+
+          if (!osmd) {
+            osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay(container, {
+              autoResize: true,
+              backend: "svg",
+              drawTitle: true,
+              drawSubtitle: true,
+              drawComposer: true,
+              drawLyricist: true,
+              drawPartNames: true,
+              drawingParameters: "default",
+              pageBackgroundColor: "#FFFFFF"
+            });
+          }
+
+          await osmd.load(xmlString);
+          osmd.render();
+          setStatus("", false);
+        } catch (err) {
+          const message = err && err.message ? err.message : String(err);
+          setStatus("Unable to render MusicXML score: " + message, true);
+        }
+      };
+    })();
+  </script>
+</body>
+</html>
