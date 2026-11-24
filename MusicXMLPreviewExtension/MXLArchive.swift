@@ -75,6 +75,29 @@ struct MXLArchive {
         return try Self.decodeXMLString(from: scoreData)
     }
 
+    /// Extracts an arbitrary archive entry by path (case-insensitive fallback), or returns `nil` if absent.
+    func extractEntry(named target: String) throws -> Data? {
+        let normalized = target.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard let entry = findEntry(named: normalized) ?? findEntry(named: target) else {
+            return nil
+        }
+        return try extract(entry)
+    }
+
+    /// Extracts the embedded preview PNG (`Thumbnails/thumbnail.png`) from a MuseScore `.mscz` archive.
+    func extractMuseScoreThumbnail() throws -> Data? {
+        if let exact = try extractEntry(named: "Thumbnails/thumbnail.png") {
+            return exact
+        }
+        if let fallback = entries.first(where: { entry in
+            let lower = entry.name.lowercased()
+            return (lower.hasPrefix("thumbnails/") || lower == "thumbnail.png") && lower.hasSuffix(".png")
+        }) {
+            return try extract(fallback)
+        }
+        return nil
+    }
+
     static func decodeXMLString(from data: Data) throws -> String {
         if let utf8 = String(data: data, encoding: .utf8) {
             return utf8

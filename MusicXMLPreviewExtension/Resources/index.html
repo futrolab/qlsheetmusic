@@ -59,6 +59,49 @@
       max-width: 100%;
       height: auto;
     }
+
+    #thumbnail-container {
+      display: none;
+      width: 100%;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 8px 0;
+    }
+
+    #thumbnail-image {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    #message-card {
+      display: none;
+      max-width: 560px;
+      margin: 64px auto 0;
+      padding: 24px 28px;
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      text-align: left;
+    }
+
+    #message-title {
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    #message-detail {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #4b5563;
+    }
   </style>
   <script src="opensheetmusicdisplay.min.js"></script>
 </head>
@@ -66,6 +109,13 @@
   <main id="page-wrapper">
     <div id="status">Rendering sheet music…</div>
     <div id="osmd-container"></div>
+    <div id="thumbnail-container">
+      <img id="thumbnail-image" alt="MuseScore score preview" />
+    </div>
+    <section id="message-card">
+      <h2 id="message-title"></h2>
+      <p id="message-detail"></p>
+    </section>
   </main>
 
   <script>
@@ -86,6 +136,16 @@
         el.textContent = message;
       }
 
+      function showMode(mode) {
+        const osmdEl = document.getElementById("osmd-container");
+        const thumbEl = document.getElementById("thumbnail-container");
+        const msgEl = document.getElementById("message-card");
+
+        osmdEl.style.display = mode === "osmd" ? "block" : "none";
+        thumbEl.style.display = mode === "thumbnail" ? "flex" : "none";
+        msgEl.style.display = mode === "message" ? "block" : "none";
+      }
+
       function decodeBase64UTF8(base64) {
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
@@ -97,9 +157,10 @@
 
       window.renderMusicXMLBase64 = async function (base64Payload) {
         try {
+          showMode("osmd");
           if (typeof opensheetmusicdisplay === "undefined") {
             setStatus(
-              "OpenSheetMusicDisplay bundle missing (opensheetmusicdisplay.min.js). Run Scripts/fetch-osmd.sh before building.",
+              "OpenSheetMusicDisplay bundle missing (opensheetmusicdisplay.min.js).",
               true
             );
             return;
@@ -130,6 +191,26 @@
           const message = err && err.message ? err.message : String(err);
           setStatus("Unable to render MusicXML score: " + message, true);
         }
+      };
+
+      window.renderThumbnailBase64 = function (base64PNG) {
+        const img = document.getElementById("thumbnail-image");
+        showMode("thumbnail");
+        setStatus("Loading MuseScore preview…", false);
+        img.onload = function () {
+          setStatus("", false);
+        };
+        img.onerror = function () {
+          setStatus("Unable to decode embedded MuseScore thumbnail image.", true);
+        };
+        img.src = "data:image/png;base64," + base64PNG;
+      };
+
+      window.renderMessageBase64 = function (titleBase64, detailBase64) {
+        document.getElementById("message-title").textContent = decodeBase64UTF8(titleBase64);
+        document.getElementById("message-detail").textContent = decodeBase64UTF8(detailBase64);
+        setStatus("", false);
+        showMode("message");
       };
     })();
   </script>

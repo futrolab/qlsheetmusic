@@ -7,10 +7,17 @@ APP_NAME="MusicXMLQuickLook"
 EXT_NAME="MusicXMLPreviewExtension"
 APP_BUNDLE="${BUILD_DIR}/${APP_NAME}.app"
 EXT_BUNDLE="${APP_BUNDLE}/Contents/PlugIns/${EXT_NAME}.appex"
-OSMD_JS="${ROOT_DIR}/MusicXMLPreviewExtension/Resources/opensheetmusicdisplay.min.js"
+OSMD_SRC="${ROOT_DIR}/MusicXMLPreviewExtension/Resources/opensheetmusicdisplay.min.js"
+OSMD_BUNDLED="${EXT_BUNDLE}/Contents/Resources/opensheetmusicdisplay.min.js"
+OSMD_CACHE="${BUILD_DIR}/.cached-opensheetmusicdisplay.min.js"
 
-if [[ ! -f "${OSMD_JS}" ]]; then
-  echo "Missing ${OSMD_JS}. Run ./Scripts/fetch-osmd.sh first." >&2
+if [[ -f "${OSMD_SRC}" ]]; then
+  cp "${OSMD_SRC}" "${OSMD_CACHE}"
+elif [[ -f "${OSMD_BUNDLED}" ]]; then
+  cp "${OSMD_BUNDLED}" "${OSMD_CACHE}"
+else
+  echo "Missing opensheetmusicdisplay.min.js in MusicXMLPreviewExtension/Resources/." >&2
+  echo "Download it first via curl (see README.md)." >&2
   exit 1
 fi
 
@@ -82,7 +89,7 @@ swiftc \
   -o "${EXT_BUNDLE}/Contents/MacOS/${EXT_NAME}"
 
 cp "${ROOT_DIR}/MusicXMLPreviewExtension/Resources/index.html" "${EXT_BUNDLE}/Contents/Resources/"
-cp "${OSMD_JS}" "${EXT_BUNDLE}/Contents/Resources/"
+mv "${OSMD_CACHE}" "${EXT_BUNDLE}/Contents/Resources/opensheetmusicdisplay.min.js"
 
 render_plist \
   "${ROOT_DIR}/MusicXMLPreviewExtension/Info.plist" \

@@ -1,6 +1,6 @@
 # MusicXMLQuickLook
 
-macOS Quick Look Preview Extension (`.appex`) for `.musicxml` and `.mxl` files using local OpenSheetMusicDisplay inside `WKWebView`.
+macOS Quick Look Preview Extension (`.appex`) for `.musicxml`, `.mxl`, and `.mscz` files using local OpenSheetMusicDisplay (and embedded MuseScore thumbnails for `.mscz`) inside `WKWebView`.
 
 ## Prerequisites (Rebuilding from Source)
 
@@ -42,6 +42,7 @@ qlmanage -r && qlmanage -r cache
 
 qlmanage -p /path/to/score.musicxml
 qlmanage -p /path/to/score.mxl
+qlmanage -p /path/to/score.mscz
 ```
 
 Once built, `opensheetmusicdisplay.min.js` is embedded inside `build/MusicXMLQuickLook.app/Contents/PlugIns/MusicXMLPreviewExtension.appex/Contents/Resources/` — the source copy in `MusicXMLPreviewExtension/Resources/` is only needed when rebuilding.

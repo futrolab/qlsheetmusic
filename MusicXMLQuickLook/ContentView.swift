@@ -12,7 +12,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("MusicXML Quick Look")
                         .font(.headline)
-                    Text("Finder Spacebar preview for .musicxml and .mxl files")
+                    Text("Finder Spacebar preview for .musicxml, .mxl, and .mscz files")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -22,7 +22,7 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("1. Enable the extension in System Settings → General → Login Items & Extensions → Quick Look.")
-                Text("2. Select any .musicxml or .mxl file in Finder and press Spacebar.")
+                Text("2. Select any .musicxml, .mxl, or .mscz file in Finder and press Spacebar.")
             }
             .font(.callout)
             .foregroundStyle(.secondary)
