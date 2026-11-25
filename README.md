@@ -1,4 +1,4 @@
-# MusicXMLQuickLook
+# qlsheetmusic
 
 macOS Quick Look Preview Extension (`.appex`) for `.musicxml`, `.mxl`, and `.mscz` files.
 
@@ -10,8 +10,8 @@ macOS Quick Look Preview Extension (`.appex`) for `.musicxml`, `.mxl`, and `.msc
 Works with Apple Command Line Tools (`swiftc`, `codesign`, `plutil`) — no full Xcode required:
 
 ```bash
-git clone <your-repo-url>
-cd MacOS_Quick_Look_Music_Formats
+git clone https://github.com/futrolab/qlsheetmusic.git
+cd qlsheetmusic
 ./Scripts/build-without-xcode.sh
 ```
 
@@ -61,6 +61,10 @@ qlmanage -r && qlmanage -r cache
 2. Add a **Quick Look Preview Extension** target named `MusicXMLPreviewExtension` (Bundle ID `com.futrolab.MusicXMLQuickLook.PreviewExtension`, Deployment Target 13.0).
 3. Replace the generated files with `MusicXMLQuickLook/*` and `MusicXMLPreviewExtension/*`.
 4. Add `MusicXMLPreviewExtension/Resources/index.html` and `opensheetmusicdisplay.min.js` to **Copy Bundle Resources**, and link `QuickLookUI.framework` + `WebKit.framework`.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
