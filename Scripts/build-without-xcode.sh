@@ -10,15 +10,20 @@ EXT_BUNDLE="${APP_BUNDLE}/Contents/PlugIns/${EXT_NAME}.appex"
 OSMD_SRC="${ROOT_DIR}/MusicXMLPreviewExtension/Resources/opensheetmusicdisplay.min.js"
 OSMD_BUNDLED="${EXT_BUNDLE}/Contents/Resources/opensheetmusicdisplay.min.js"
 OSMD_CACHE="${BUILD_DIR}/.cached-opensheetmusicdisplay.min.js"
+OSMD_VERSION="${OSMD_VERSION:-3.0.0}"
+BUNDLE_ID_PREFIX="${BUNDLE_ID_PREFIX:-com.futrolab}"
+
+mkdir -p "${BUILD_DIR}"
 
 if [[ -f "${OSMD_SRC}" ]]; then
   cp "${OSMD_SRC}" "${OSMD_CACHE}"
 elif [[ -f "${OSMD_BUNDLED}" ]]; then
   cp "${OSMD_BUNDLED}" "${OSMD_CACHE}"
 else
-  echo "Missing opensheetmusicdisplay.min.js in MusicXMLPreviewExtension/Resources/." >&2
-  echo "Download it first via curl (see README.md)." >&2
-  exit 1
+  echo "Fetching opensheetmusicdisplay@${OSMD_VERSION}..."
+  curl -fsSL \
+    "https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@${OSMD_VERSION}/build/opensheetmusicdisplay.min.js" \
+    -o "${OSMD_CACHE}"
 fi
 
 ARCH="$(uname -m)"
@@ -95,7 +100,7 @@ render_plist \
   "${ROOT_DIR}/MusicXMLPreviewExtension/Info.plist" \
   "${EXT_BUNDLE}/Contents/Info.plist" \
   "${EXT_NAME}" \
-  "com.futrolab.MusicXMLQuickLook.PreviewExtension" \
+  "${BUNDLE_ID_PREFIX}.MusicXMLQuickLook.PreviewExtension" \
   "${EXT_NAME}" \
   "${EXT_NAME}"
 
@@ -117,7 +122,7 @@ render_plist \
   "${ROOT_DIR}/MusicXMLQuickLook/Info.plist" \
   "${APP_BUNDLE}/Contents/Info.plist" \
   "${APP_NAME}" \
-  "com.futrolab.MusicXMLQuickLook" \
+  "${BUNDLE_ID_PREFIX}.MusicXMLQuickLook" \
   "${APP_NAME}" \
   "${APP_NAME}"
 

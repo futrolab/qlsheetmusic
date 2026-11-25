@@ -1,36 +1,21 @@
 # MusicXMLQuickLook
 
-macOS Quick Look Preview Extension (`.appex`) for `.musicxml`, `.mxl`, and `.mscz` files using local OpenSheetMusicDisplay (and embedded MuseScore thumbnails for `.mscz`) inside `WKWebView`.
+macOS Quick Look Preview Extension (`.appex`) for `.musicxml`, `.mxl`, and `.mscz` files.
 
-## Prerequisites (Rebuilding from Source)
+- **`.musicxml` / `.mxl`**: Unpacked in memory via Apple's `Compression` framework (`META-INF/container.xml`) and rendered offline to SVG using bundled [OpenSheetMusicDisplay](https://github.com/opensheetmusicdisplay/opensheetmusicdisplay) inside `WKWebView`.
+- **`.mscz`**: Unpacked in memory to display MuseScore's embedded `Thumbnails/thumbnail.png` scaled to fit the preview window (with a fallback notice if saved without a thumbnail).
 
-Fetch the local **OpenSheetMusicDisplay** bundle into `MusicXMLPreviewExtension/Resources/` before building (Quick Look extensions render offline):
+## Quick Start (Command Line Tools Only)
 
-```bash
-curl -fsSL \
-  https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@3.0.0/build/opensheetmusicdisplay.min.js \
-  -o MusicXMLPreviewExtension/Resources/opensheetmusicdisplay.min.js
-```
-
-Or via `npm`:
+Works with Apple Command Line Tools (`swiftc`, `codesign`, `plutil`) — no full Xcode required:
 
 ```bash
-npm install --no-save opensheetmusicdisplay
-cp node_modules/opensheetmusicdisplay/build/opensheetmusicdisplay.min.js \
-   MusicXMLPreviewExtension/Resources/opensheetmusicdisplay.min.js
-```
-
-> **Note:** Both `.entitlements` files include `com.apple.security.app-sandbox` and `com.apple.security.network.client`. Even for local `file://` HTML, WebKit's child XPC services (`WebContent`, `GPU`, `Networking`) require `com.apple.security.network.client` on macOS 15+.
-
-## Option A: Build Without Full Xcode (CommandLineTools Only)
-
-Works with only Apple Command Line Tools (`swiftc`, `codesign`, `plutil`) for local use on this Mac:
-
-```bash
+git clone <your-repo-url>
+cd MacOS_Quick_Look_Music_Formats
 ./Scripts/build-without-xcode.sh
 ```
 
-Output bundle: `build/MusicXMLQuickLook.app` (ad-hoc signed, with `MusicXMLPreviewExtension.appex` embedded in `Contents/PlugIns/`).
+On first run, `build-without-xcode.sh` automatically fetches `opensheetmusicdisplay@3.0.0` into `build/MusicXMLQuickLook.app` (override with `BUNDLE_ID_PREFIX=com.yourname` if desired).
 
 ### Register & Test
 
@@ -45,13 +30,17 @@ qlmanage -p /path/to/score.mxl
 qlmanage -p /path/to/score.mscz
 ```
 
-Once built, `opensheetmusicdisplay.min.js` is embedded inside `build/MusicXMLQuickLook.app/Contents/PlugIns/MusicXMLPreviewExtension.appex/Contents/Resources/` — the source copy in `MusicXMLPreviewExtension/Resources/` is only needed when rebuilding.
+> **macOS Sandbox Note:** Both `.entitlements` files include `com.apple.security.app-sandbox` and `com.apple.security.network.client`. Even for local `file://` HTML, WebKit's child XPC services (`WebContent`, `GPU`, `Networking`) require `com.apple.security.network.client` on macOS 15+.
 
-## Option B: Build with XcodeGen + Full Xcode
+## Build with XcodeGen + Full Xcode (Optional)
 
-Requires full Xcode (`xcode-select -s /Applications/Xcode.app/Contents/Developer`) and `brew install xcodegen`:
+Requires full Xcode (`xcode-select -s /Applications/Xcode.app/Contents/Developer`), `brew install xcodegen`, and a local OSMD bundle in `MusicXMLPreviewExtension/Resources/`:
 
 ```bash
+curl -fsSL \
+  https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@3.0.0/build/opensheetmusicdisplay.min.js \
+  -o MusicXMLPreviewExtension/Resources/opensheetmusicdisplay.min.js
+
 xcodegen generate
 xcodebuild -project MusicXMLQuickLook.xcodeproj \
   -scheme MusicXMLQuickLook \
@@ -66,10 +55,13 @@ pluginkit -e use -i com.futrolab.MusicXMLQuickLook.PreviewExtension
 qlmanage -r && qlmanage -r cache
 ```
 
-## Option C: Manual Xcode Setup
+## Manual Xcode Setup
 
 1. Create a **macOS App** project named `MusicXMLQuickLook` (SwiftUI, Deployment Target 13.0, Bundle ID `com.futrolab.MusicXMLQuickLook`).
-2. Add a new target: **macOS → Quick Look Preview Extension** named `MusicXMLPreviewExtension` (Bundle ID `com.futrolab.MusicXMLQuickLook.PreviewExtension`, Deployment Target 13.0).
+2. Add a **Quick Look Preview Extension** target named `MusicXMLPreviewExtension` (Bundle ID `com.futrolab.MusicXMLQuickLook.PreviewExtension`, Deployment Target 13.0).
 3. Replace the generated files with `MusicXMLQuickLook/*` and `MusicXMLPreviewExtension/*`.
-4. Ensure `MusicXMLPreviewExtension/Resources/index.html` and `opensheetmusicdisplay.min.js` are listed in `MusicXMLPreviewExtension → Build Phases → Copy Bundle Resources`.
-5. Link `QuickLookUI.framework` and `WebKit.framework` in `MusicXMLPreviewExtension → Frameworks and Libraries`, then build and run the `MusicXMLQuickLook` scheme once.
+4. Add `MusicXMLPreviewExtension/Resources/index.html` and `opensheetmusicdisplay.min.js` to **Copy Bundle Resources**, and link `QuickLookUI.framework` + `WebKit.framework`.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Bundled OpenSheetMusicDisplay is licensed under BSD-3-Clause.
