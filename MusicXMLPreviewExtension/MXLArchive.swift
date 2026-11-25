@@ -11,20 +11,20 @@ enum MXLArchiveError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidArchive:
-            return "The .mxl file is not a valid ZIP archive."
+            return "The archive is not a valid ZIP file."
         case .unsupportedCompressionMethod(let method):
             return "Unsupported ZIP compression method (\(method))."
         case .decompressionFailed:
-            return "Failed to decompress the MusicXML payload from the .mxl archive."
+            return "Failed to decompress the MusicXML payload from the archive."
         case .rootScoreNotFound:
             return "Could not locate a root MusicXML document inside the .mxl archive."
         case .invalidXMLTextEncoding:
-            return "Could not decode the MusicXML document as UTF-8 or UTF-16 text."
+            return "Could not decode the MusicXML document text encoding."
         }
     }
 }
 
-/// Pure-Swift in-memory MXL (ZIP + META-INF/container.xml) extractor backed by Apple's Compression framework.
+/// Pure-Swift in-memory ZIP extractor for `.mxl` and `.mscz` archives backed by Apple's Compression framework.
 struct MXLArchive {
     private struct ZipEntry {
         let name: String
@@ -66,8 +66,7 @@ struct MXLArchive {
             throw MXLArchiveError.rootScoreNotFound
         }
 
-        let normalized = rootPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let scoreEntry = findEntry(named: normalized) ?? findEntry(named: rootPath) else {
+        guard let scoreEntry = findEntry(named: rootPath) else {
             throw MXLArchiveError.rootScoreNotFound
         }
 
@@ -75,10 +74,9 @@ struct MXLArchive {
         return try Self.decodeXMLString(from: scoreData)
     }
 
-    /// Extracts an arbitrary archive entry by path (case-insensitive fallback), or returns `nil` if absent.
+    /// Extracts an arbitrary archive entry by path (normalized + case-insensitive fallback), or returns `nil` if absent.
     func extractEntry(named target: String) throws -> Data? {
-        let normalized = target.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let entry = findEntry(named: normalized) ?? findEntry(named: target) else {
+        guard let entry = findEntry(named: target) else {
             return nil
         }
         return try extract(entry)
@@ -99,34 +97,91 @@ struct MXLArchive {
     }
 
     static func decodeXMLString(from data: Data) throws -> String {
+        guard !data.isEmpty else { throw MXLArchiveError.invalidXMLTextEncoding }
+
+        // 1. Explicit BOM checks (avoid decoding BOM-less Latin-1 as UTF-16 mojibake).
+        if data.count >= 3, data[0] == 0xEF, data[1] == 0xBB, data[2] == 0xBF {
+            if let utf8 = String(data: data.dropFirst(3), encoding: .utf8) {
+                return utf8
+            }
+        }
+        if data.count >= 2 {
+            if data[0] == 0xFF, data[1] == 0xFE, let utf16LE = String(data: data.dropFirst(2), encoding: .utf16LittleEndian) {
+                return utf16LE
+            }
+            if data[0] == 0xFE, data[1] == 0xFF, let utf16BE = String(data: data.dropFirst(2), encoding: .utf16BigEndian) {
+                return utf16BE
+            }
+        }
+
+        // 2. UTF-8 (standard MusicXML encoding).
         if let utf8 = String(data: data, encoding: .utf8) {
             return utf8
         }
-        if let utf16 = String(data: data, encoding: .utf16) {
-            return utf16
+
+        // 3. BOM-less UTF-16 heuristic (only when NUL bytes indicate 16-bit ASCII characters).
+        let sample = data.prefix(64)
+        if sample.contains(0) {
+            if let utf16LE = String(data: data, encoding: .utf16LittleEndian), utf16LE.contains("<") {
+                return utf16LE
+            }
+            if let utf16BE = String(data: data, encoding: .utf16BigEndian), utf16BE.contains("<") {
+                return utf16BE
+            }
         }
-        if let utf16LE = String(data: data, encoding: .utf16LittleEndian) {
-            return utf16LE
+
+        // 4. Single-byte legacy MusicXML encodings (ISO-8859-1 / Windows-1252).
+        if let cp1252 = String(data: data, encoding: .windowsCP1252) {
+            return cp1252
         }
-        if let utf16BE = String(data: data, encoding: .utf16BigEndian) {
-            return utf16BE
+        if let latin1 = String(data: data, encoding: .isoLatin1) {
+            return latin1
         }
+
         throw MXLArchiveError.invalidXMLTextEncoding
     }
 
     // MARK: - Entry Lookup
 
-    private func findEntry(named target: String) -> ZipEntry? {
-        if let exact = entries.first(where: { $0.name == target }) {
-            return exact
+    private static func normalizePath(_ raw: String) -> String {
+        var s = raw.replacingOccurrences(of: "\\", with: "/")
+        while s.hasPrefix("./") {
+            s.removeFirst(2)
         }
-        return entries.first(where: { $0.name.caseInsensitiveCompare(target) == .orderedSame })
+        while s.hasPrefix("/") {
+            s.removeFirst()
+        }
+        return s
+    }
+
+    private func findEntry(named target: String) -> ZipEntry? {
+        let candidates = [
+            target,
+            Self.normalizePath(target),
+            Self.normalizePath(target.removingPercentEncoding ?? target),
+        ]
+
+        for candidate in candidates {
+            if let exact = entries.first(where: { $0.name == candidate }) {
+                return exact
+            }
+        }
+        for candidate in candidates {
+            if let ci = entries.first(where: { $0.name.caseInsensitiveCompare(candidate) == .orderedSame }) {
+                return ci
+            }
+        }
+        return nil
     }
 
     private func fallbackScoreEntry() -> ZipEntry? {
         entries.first { entry in
             let lower = entry.name.lowercased()
-            guard !lower.hasPrefix("meta-inf/"), !lower.hasSuffix("/") else { return false }
+            guard !lower.hasPrefix("meta-inf/"),
+                  !lower.hasPrefix("__macosx/"),
+                  !lower.hasSuffix("/") else {
+                return false
+            }
             return lower.hasSuffix(".musicxml") || lower.hasSuffix(".xml")
         }
     }
@@ -141,8 +196,11 @@ struct MXLArchive {
         var idx = data.count - 22
         while idx >= searchLimit {
             if data.readUInt32LE(at: idx) == 0x0605_4b50 {
-                eocdOffset = idx
-                break
+                let commentLen = Int(data.readUInt16LE(at: idx + 20))
+                if idx + 22 + commentLen == data.count {
+                    eocdOffset = idx
+                    break
+                }
             }
             idx -= 1
         }
@@ -303,18 +361,23 @@ private final class ContainerXMLParser: NSObject, XMLParserDelegate {
         qualifiedName qName: String?,
         attributes attributeDict: [String: String]
     ) {
-        guard elementName.lowercased() == "rootfile" else { return }
+        let lowerName = elementName.lowercased()
+        guard lowerName == "rootfile" || lowerName.hasSuffix(":rootfile") else { return }
         guard let rawPath = attributeDict["full-path"]?.trimmingCharacters(in: .whitespacesAndNewlines),
               !rawPath.isEmpty else {
             return
         }
 
+        let mediaType = attributeDict["media-type"]?.lowercased() ?? ""
+        let lowerPath = rawPath.lowercased()
+        let isMusicXML = mediaType.contains("musicxml")
+            || lowerPath.hasSuffix(".musicxml")
+            || lowerPath.hasSuffix(".xml")
+
         if firstPath == nil {
             firstPath = rawPath
         }
-
-        let mediaType = attributeDict["media-type"]?.lowercased() ?? ""
-        if preferredPath == nil && (mediaType.contains("musicxml") || rawPath.lowercased().hasSuffix(".musicxml")) {
+        if preferredPath == nil && isMusicXML {
             preferredPath = rawPath
         }
     }

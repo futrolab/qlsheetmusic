@@ -8,7 +8,7 @@ Fetch the local **OpenSheetMusicDisplay** bundle into `MusicXMLPreviewExtension/
 
 ```bash
 curl -fsSL \
-  https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.9/build/opensheetmusicdisplay.min.js \
+  https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@3.0.0/build/opensheetmusicdisplay.min.js \
   -o MusicXMLPreviewExtension/Resources/opensheetmusicdisplay.min.js
 ```
 

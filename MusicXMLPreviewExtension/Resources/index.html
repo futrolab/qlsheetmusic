@@ -33,6 +33,14 @@
       background-color: #ffffff;
     }
 
+    body.mode-thumbnail #page-wrapper {
+      max-width: 100%;
+      padding: 16px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     #status {
       padding: 16px;
       font-size: 13px;
@@ -65,11 +73,11 @@
       width: 100%;
       justify-content: center;
       align-items: flex-start;
-      padding: 8px 0;
     }
 
     #thumbnail-image {
       display: block;
+      width: 100%;
       max-width: 100%;
       height: auto;
       background-color: #ffffff;
@@ -121,6 +129,24 @@
   <script>
     (function () {
       let osmd = null;
+      let osmdPatched = false;
+
+      function patchOSMDBounds() {
+        if (osmdPatched || typeof opensheetmusicdisplay === "undefined") return;
+        osmdPatched = true;
+        const gms = opensheetmusicdisplay.GraphicalMusicSheet;
+        if (!gms || !gms.prototype) return;
+        const orig = gms.prototype.GetInterpolatedIndexInVerticalContainers;
+        if (typeof orig === "function") {
+          gms.prototype.GetInterpolatedIndexInVerticalContainers = function (t) {
+            const containers = this.verticalGraphicalStaffEntryContainers;
+            if (!containers || containers.length === 0) {
+              return 0;
+            }
+            return orig.call(this, t);
+          };
+        }
+      }
 
       function setStatus(message, isError) {
         const el = document.getElementById("status");
@@ -137,6 +163,7 @@
       }
 
       function showMode(mode) {
+        document.body.classList.toggle("mode-thumbnail", mode === "thumbnail");
         const osmdEl = document.getElementById("osmd-container");
         const thumbEl = document.getElementById("thumbnail-container");
         const msgEl = document.getElementById("message-card");
@@ -166,6 +193,7 @@
             return;
           }
 
+          patchOSMDBounds();
           setStatus("Rendering sheet music…", false);
           const xmlString = decodeBase64UTF8(base64Payload);
           const container = document.getElementById("osmd-container");
